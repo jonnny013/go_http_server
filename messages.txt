@@ -1,4 +1,5 @@
-Lorem ipsum, dolor sit amet consectetur adipisicing elit.
-Tempore doloremque ad repellendus atque, nam culpa animi deleniti quas eveniet a, ducimus, blanditiis autem ipsa iure deserunt!
-Facere veniam quam cum!
-Eius, laboriosam debitis omnis doloremque sapiente earum repellendus hic quia perspiciatis obcaecati aperiam commodi? Nobis ea, debitis quas natus eligendi voluptatibus et iusto esse libero maxime, sapiente ad sequi laborum.
+Do you have what it takes to be an engineer at TheStartup™?
+Are you willing to work 80 hours a week in hopes that your 0.001% equity is worth something?
+Can you say "synergy" and "democratize" with a straight face?
+Are you prepared to eat top ramen at your desk 3 meals a day?
+end
