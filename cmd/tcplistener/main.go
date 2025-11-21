@@ -1,11 +1,12 @@
 package main
 
 import (
-	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"log"
 	"net"
+	"strings"
 )
 
 func getLinesChannel(f io.ReadCloser) <-chan string {
@@ -22,45 +23,54 @@ func getLinesChannel(f io.ReadCloser) <-chan string {
 			n, err := f.Read(data)
 
 			if err != nil {
-				break
+				if curLine != "" {
+					ch <- curLine
+				}
+				if errors.Is(err, io.EOF) {
+					break
+				}
+				fmt.Printf("error: %s\n", err.Error())
+				return
 			}
-			data = data[:n]
-			if i := bytes.IndexByte(data, '\n'); i != -1 {
-				curLine += string(data[:i])
-				ch <- curLine
-				data = data[i+1:]
+
+			str := string(data[:n])
+			parts := strings.Split(str, "\n")
+			for i := 0; i < len(parts)-1; i++ {
+				ch <- fmt.Sprintf("%s%s", curLine, parts[i])
 				curLine = ""
 			}
-			curLine += string(data)
+			curLine += parts[len(parts)-1]
 		}
-		if len(curLine) != 0 {
-			ch <- curLine
-		}
+
 	}()
 
 	return ch
 }
 
+const port = ":42069"
+
 func main() {
-	l, err := net.Listen("tcp", ":42069")
+	l, err := net.Listen("tcp", port)
 
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("error %s\n", err.Error())
 	}
 
 	defer l.Close()
+
+	fmt.Println("Listening for TCP traffic on", port)
 
 	for {
 		c, err := l.Accept()
 
 		if err != nil {
-			log.Fatal(err)
+			log.Fatalf("error %s\n", err.Error())
 		}
 
-		fmt.Println("Connection accepted", c.RemoteAddr())
+		fmt.Println("Connection accepted from", c.RemoteAddr())
 
 		for l := range getLinesChannel(c) {
-			fmt.Printf("read: %s\n", l)
+			fmt.Println(l)
 		}
 		fmt.Println("Connection to ", c.RemoteAddr(), "closed")
 	}
