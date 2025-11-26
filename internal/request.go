@@ -1,10 +1,10 @@
 package request
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"strings"
+	"unicode"
 )
 
 type Request struct {
@@ -17,6 +17,59 @@ type RequestLine struct {
 	Method        string
 }
 
+func (r *RequestLine) ValidHTTP() bool {
+	return r.HttpVersion == "1.1"
+}
+
+func (r *RequestLine) ValidPath() bool {
+	return r.RequestTarget[0] == '/'
+}
+
+func (r *RequestLine) ValidMethod() bool {
+	for _, r := range r.Method {
+		if unicode.IsLetter(r) && !unicode.IsUpper(r) {
+			return false
+		}
+	}
+	return true
+}
+
+var SEPARATOR = "\r\n"
+
+func parseRequestLine(b string) (*RequestLine, string, error) {
+	idx := strings.Index(b, SEPARATOR)
+	if idx == -1 {
+		return nil, b, nil
+	}
+
+	startLine := b[:idx]
+	restOfMessage := b[idx+len(SEPARATOR):]
+
+	parts := strings.Split(startLine, " ")
+
+	if len(parts) != 3 {
+		return nil, restOfMessage, fmt.Errorf("wrong length: %s", startLine)
+	}
+
+	httpParts := strings.Split(parts[2], "/")
+
+	if len(httpParts) != 2 || httpParts[0] != "HTTP" || httpParts[1] != "1.1" {
+		return nil, restOfMessage, fmt.Errorf("incorrect HTTP method: %s", parts[2])
+	}
+
+	rl := &RequestLine{
+		Method:        parts[0],
+		RequestTarget: parts[1],
+		HttpVersion:   httpParts[1],
+	}
+
+	if !rl.ValidMethod() || !rl.ValidPath() {
+		return nil, restOfMessage, fmt.Errorf("malformed request line: %s", startLine)
+	}
+
+	return rl, restOfMessage, nil
+}
+
 func RequestFromReader(reader io.Reader) (*Request, error) {
 	var req Request
 
@@ -26,27 +79,13 @@ func RequestFromReader(reader io.Reader) (*Request, error) {
 		return &req, err
 	}
 
-	split := strings.Fields(string(initialReq))
+	sl, _, err := parseRequestLine(string(initialReq))
 
-	if len(split) < 3 {
-		return &req, errors.New("empty request")
+	if err != nil {
+		return &req, err
 	}
 
-	if split[0] != "GET" {
-		return &req, fmt.Errorf("unsupported format: %s", split[0])
-	}
+	req.RequestLine = *sl
 
-	if split[1][0] != '/' {
-		return &req, fmt.Errorf("unsupported format: %s", split[1])
-	}
-
-	if split[2] != "HTTP/1.1" {
-		return &req, fmt.Errorf("unsupported format: %s", split[2])
-	}
-
-	req.RequestLine.Method = split[0]
-	req.RequestLine.RequestTarget = split[1]
-	req.RequestLine.HttpVersion = "1.1"
-
-	return &req, nil
+	return &req, err
 }
