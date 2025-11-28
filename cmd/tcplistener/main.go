@@ -5,7 +5,7 @@ import (
 	"log"
 	"net"
 
-	request "github.com/jonnny013/go_html_server/internal"
+	request "github.com/jonnny013/go_html_server/internal/request"
 )
 
 const port = ":42069"
