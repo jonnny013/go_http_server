@@ -38,13 +38,12 @@ func isValidToken(str []byte) bool {
 
 		if unicode.IsLetter(rune(ch)) || unicode.IsDigit(rune(ch)) {
 			continue
-		} else {
-			switch ch {
-			case '!', '#', '$', '%', '&', '\'', '*', '+', '-', '.', '^', '_', '`', '|', '~':
-				continue
-			default:
-				return false
-			}
+		}
+		switch ch {
+		case '!', '#', '$', '%', '&', '\'', '*', '+', '-', '.', '^', '_', '`', '|', '~':
+			continue
+		default:
+			return false
 		}
 
 	}
