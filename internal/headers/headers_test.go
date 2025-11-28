@@ -16,7 +16,7 @@ func TestHeaderParsing(t *testing.T) {
 	require.NotNil(t, headers)
 	assert.Equal(t, "localhost:42069", headers["Host"])
 	assert.Equal(t, 23, n)
-	assert.False(t, done)
+	assert.True(t, done)
 
 	// Test: Invalid spacing header
 	headers = NewHeaders()
@@ -26,13 +26,15 @@ func TestHeaderParsing(t *testing.T) {
 	assert.Equal(t, 0, n)
 	assert.False(t, done)
 
-		// Test: Valid multi header
+	// Test: Valid multi header
 	headers = NewHeaders()
 	data = []byte("Host: localhost:42069\r\nSomething: cool\r\n\r\n")
 	n, done, err = headers.Parse(data)
 	require.NoError(t, err)
 	require.NotNil(t, headers)
 	assert.Equal(t, "localhost:42069", headers["Host"])
-	assert.Equal(t, 23, n)
-	assert.False(t, done)
+	assert.True(t, done)
+	assert.Equal(t, "cool", headers["Something"])
+	assert.Equal(t, 40, n)
+
 }

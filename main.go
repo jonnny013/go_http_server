@@ -11,17 +11,10 @@ func main() {
 	intro := []byte("Hello: my name is Jon.\r\noops: hi\r\n\r\n")
 
 	header := headers.NewHeaders()
-	curByte := 0
-	for {
-		bytes, done, err := header.Parse(intro[curByte:])
-		if err != nil {
-			log.Fatalf("error %s\n", err.Error())
-		}
 
-		if done {
-			break
-		}
-		curByte += bytes
+	_, _, err := header.Parse(intro)
+	if err != nil {
+		log.Fatalf("error %s\n", err.Error())
 	}
 
 	for key, value := range header {

@@ -31,7 +31,7 @@ func getKeyVal(data []byte) (string, string, error) {
 	}
 	endIndex := bytes.Index(data, crlf)
 
-	valueBytes := data[idx+1:endIndex]
+	valueBytes := data[idx+1 : endIndex]
 
 	value := strings.TrimSpace(string(valueBytes))
 
@@ -43,25 +43,31 @@ func getKeyVal(data []byte) (string, string, error) {
 }
 
 func (h Headers) Parse(data []byte) (n int, done bool, err error) {
-	idx := bytes.Index(data, crlf)
 
-	if idx == -1 {
-		return 0, false, nil
+	consumedBytes := 0
+	done = false
+
+	for {
+		idx := bytes.Index(data[consumedBytes:], crlf)
+		if idx == -1 {
+			return 0, false, nil
+		}
+		if idx == 0 {
+			done = true
+			break
+		}
+
+		key, value, err := getKeyVal(data[consumedBytes:])
+
+		if err != nil {
+			return 0, false, err
+		}
+
+		h[key] = value
+
+		consumedBytes += idx + len(crlf)
 	}
-	if idx == 0 {
-		return 0, true, nil
-	}
-
-	key, value, err := getKeyVal(data)
-
-	if err != nil {
-		return 0, false, err
-	}
-
-	h[key] = value
-
-	return idx + len(crlf), false, nil
-
+	return consumedBytes, done, nil
 }
 
 func NewHeaders() Headers {
