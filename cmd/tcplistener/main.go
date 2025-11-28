@@ -1,51 +1,12 @@
 package main
 
 import (
-	"errors"
 	"fmt"
-	"io"
 	"log"
 	"net"
-	"strings"
+
+	request "github.com/jonnny013/go_html_server/internal"
 )
-
-func getLinesChannel(f io.ReadCloser) <-chan string {
-	ch := make(chan string)
-
-	go func() {
-		defer f.Close()
-		defer close(ch)
-
-		curLine := ""
-
-		for {
-			data := make([]byte, 8)
-			n, err := f.Read(data)
-
-			if err != nil {
-				if curLine != "" {
-					ch <- curLine
-				}
-				if errors.Is(err, io.EOF) {
-					break
-				}
-				fmt.Printf("error: %s\n", err.Error())
-				return
-			}
-
-			str := string(data[:n])
-			parts := strings.Split(str, "\n")
-			for i := 0; i < len(parts)-1; i++ {
-				ch <- fmt.Sprintf("%s%s", curLine, parts[i])
-				curLine = ""
-			}
-			curLine += parts[len(parts)-1]
-		}
-
-	}()
-
-	return ch
-}
 
 const port = ":42069"
 
@@ -68,10 +29,11 @@ func main() {
 		}
 
 		fmt.Println("Connection accepted from", c.RemoteAddr())
-
-		for l := range getLinesChannel(c) {
-			fmt.Println(l)
+		req, err := request.RequestFromReader(c)
+		if err != nil {
+			log.Fatalf("error %s\n", err.Error())
 		}
+		fmt.Printf("Request line:\n- Method: %s\n- Target: %s\n- Version: %s\n", req.RequestLine.Method, req.RequestLine.RequestTarget, req.RequestLine.HttpVersion)
 		fmt.Println("Connection to ", c.RemoteAddr(), "closed")
 	}
 
