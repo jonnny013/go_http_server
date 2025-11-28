@@ -17,7 +17,7 @@ func main() {
 		log.Fatalf("error %s\n", err.Error())
 	}
 
-	for key, value := range header {
+	for key, value := range header.GetAll() {
 		fmt.Printf("Key: %s, Value: %s\n", key, value)
 	}
 }

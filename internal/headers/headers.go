@@ -4,13 +4,52 @@ import (
 	"bytes"
 	"fmt"
 	"strings"
+	"unicode"
 )
 
-type Headers map[string]string
+type Headers struct {
+	headers map[string]string
+}
+
+func NewHeaders() *Headers {
+	return &Headers{
+		headers: map[string]string{},
+	}
+}
+
+func (h *Headers) Get(name string) string {
+	return h.headers[strings.ToLower(name)]
+}
+
+func (h *Headers) GetAll() map[string]string {
+	return h.headers
+}
+
+func (h *Headers) Set(name, value string) {
+	h.headers[strings.ToLower(name)] = value
+}
 
 var crlf = []byte("\r\n")
 
 var errMalformedData = fmt.Errorf("data is malformed")
+
+func isValidToken(str []byte) bool {
+	for _, ch := range str {
+
+		if unicode.IsLetter(rune(ch)) || unicode.IsDigit(rune(ch)) {
+			continue
+		} else {
+			switch ch {
+			case '!', '#', '$', '%', '&', '\'', '*', '+', '-', '.', '^', '_', '`', '|', '~':
+				continue
+			default:
+				return false
+			}
+		}
+
+	}
+	return true
+}
 
 func getKeyVal(data []byte) (string, string, error) {
 	idx := bytes.IndexByte(data, ':')
@@ -26,7 +65,7 @@ func getKeyVal(data []byte) (string, string, error) {
 
 	key := strings.TrimSpace(string(keyBytes))
 
-	if key == "" {
+	if key == "" || !isValidToken(keyBytes) {
 		return "", "", errMalformedData
 	}
 	endIndex := bytes.Index(data, crlf)
@@ -39,10 +78,10 @@ func getKeyVal(data []byte) (string, string, error) {
 		return "", "", errMalformedData
 	}
 
-	return key, value, nil
+	return strings.ToLower(key), value, nil
 }
 
-func (h Headers) Parse(data []byte) (n int, done bool, err error) {
+func (h *Headers) Parse(data []byte) (n int, done bool, err error) {
 
 	consumedBytes := 0
 	done = false
@@ -63,13 +102,9 @@ func (h Headers) Parse(data []byte) (n int, done bool, err error) {
 			return 0, false, err
 		}
 
-		h[key] = value
+		h.Set(key, value)
 
 		consumedBytes += idx + len(crlf)
 	}
 	return consumedBytes, done, nil
-}
-
-func NewHeaders() Headers {
-	return Headers{}
 }
