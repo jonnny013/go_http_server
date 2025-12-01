@@ -25,8 +25,14 @@ func (h *Headers) GetAll() map[string]string {
 	return h.headers
 }
 
-func (h *Headers) Set(name, value string) {
-	h.headers[strings.ToLower(name)] = value
+func (h *Headers) Set(name, newVal string) {
+	val, ok := h.headers[strings.ToLower(name)]
+	if ok {
+		h.headers[strings.ToLower(name)] = val + "," + newVal
+	} else {
+		h.headers[strings.ToLower(name)] = newVal
+	}
+
 }
 
 var crlf = []byte("\r\n")
@@ -88,10 +94,12 @@ func (h *Headers) Parse(data []byte) (n int, done bool, err error) {
 	for {
 		idx := bytes.Index(data[consumedBytes:], crlf)
 		if idx == -1 {
-			return 0, false, nil
+			return consumedBytes, false, nil
 		}
+
 		if idx == 0 {
 			done = true
+			consumedBytes += len(crlf)
 			break
 		}
 

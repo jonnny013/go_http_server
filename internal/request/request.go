@@ -6,13 +6,17 @@ import (
 	"fmt"
 	"io"
 	"unicode"
+
+	"github.com/jonnny013/go_html_server/internal/headers"
 )
 
 type parserState string
 
 const (
-	StateInit parserState = "initialized"
-	StateDone parserState = "done"
+	StateInit    parserState = "initialized"
+	StateDone    parserState = "done"
+	StateError   parserState = "error"
+	StateHeaders parserState = "headers"
 )
 
 type RequestLine struct {
@@ -24,11 +28,13 @@ type RequestLine struct {
 type Request struct {
 	RequestLine RequestLine
 	state       parserState
+	Headers     *headers.Headers
 }
 
 func newRequest() *Request {
 	return &Request{
-		state: StateInit,
+		state:   StateInit,
+		Headers: headers.NewHeaders(),
 	}
 }
 
@@ -94,9 +100,16 @@ func (r *Request) parse(data []byte) (int, error) {
 outer:
 	for {
 		switch r.state {
+		case StateError:
+			return 0, fmt.Errorf("something went wrong")
+		case StateDone:
+			break outer
+
 		case StateInit:
+
 			rl, n, err := parseRequestLine(data[read:])
 			if err != nil {
+				r.state = StateError
 				return 0, err
 			}
 
@@ -107,9 +120,29 @@ outer:
 			r.RequestLine = *rl
 			read += n
 
-			r.state = StateDone
-		case StateDone:
-			break outer
+			r.state = StateHeaders
+
+		case StateHeaders:
+
+			n, done, err := r.Headers.Parse(data[read:])
+
+			if err != nil {
+				r.state = StateError
+				return 0, err
+			}
+
+			if n == 0 {
+				break outer
+			}
+
+			read += n
+
+			if done {
+				r.state = StateDone
+			}
+
+		default:
+			panic("we made a mistake as programmers")
 		}
 	}
 

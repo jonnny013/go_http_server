@@ -56,4 +56,17 @@ func TestHeaderParsing(t *testing.T) {
 	assert.Equal(t, 0, n)
 	assert.False(t, done)
 
+	// Test: header with the same key multiple times
+	headers = NewHeaders()
+	data = []byte("Host: localhost:42069\r\nSomething: cool\r\nSet-Person: lane-loves-go\r\nSet-Person: prime-loves-zig\r\nSet-Person: tj-loves-ocaml\r\n\r\n")
+	n, done, err = headers.Parse(data)
+	require.NoError(t, err)
+	require.NotNil(t, headers)
+	assert.Equal(t, "localhost:42069", headers.Get("Host"))
+	assert.True(t, done)
+	assert.Equal(t, "cool", headers.Get("something"))
+	assert.Equal(t, "lane-loves-go,prime-loves-zig,tj-loves-ocaml", headers.Get("set-person"))
+	assert.Equal(t, 124, n)
 }
+
+
