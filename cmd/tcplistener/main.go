@@ -34,6 +34,10 @@ func main() {
 			log.Fatalf("error %s\n", err.Error())
 		}
 		fmt.Printf("Request line:\n- Method: %s\n- Target: %s\n- Version: %s\n", req.RequestLine.Method, req.RequestLine.RequestTarget, req.RequestLine.HttpVersion)
+		fmt.Printf("Headers:\n")
+		for key, val := range req.Headers.GetAll() {
+			fmt.Printf("- %s: %s\n", key, val)
+		}
 		fmt.Println("Connection to ", c.RemoteAddr(), "closed")
 	}
 
