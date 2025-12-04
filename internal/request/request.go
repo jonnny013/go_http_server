@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
+	"strconv"
 	"unicode"
 
 	"github.com/jonnny013/go_html_server/internal/headers"
@@ -17,6 +19,7 @@ const (
 	StateDone    parserState = "done"
 	StateError   parserState = "error"
 	StateHeaders parserState = "headers"
+	StateBody    parserState = "body"
 )
 
 type RequestLine struct {
@@ -29,6 +32,7 @@ type Request struct {
 	RequestLine RequestLine
 	state       parserState
 	Headers     *headers.Headers
+	Body        []byte
 }
 
 func newRequest() *Request {
@@ -95,7 +99,7 @@ func parseRequestLine(b []byte) (*RequestLine, int, error) {
 	return rl, read, nil
 }
 
-func (r *Request) parse(data []byte) (int, error) {
+func (r *Request) parse(data []byte, fileIsFinished bool) (int, error) {
 	read := 0
 outer:
 	for {
@@ -138,9 +142,49 @@ outer:
 			read += n
 
 			if done {
+				r.state = StateBody
+			}
+		case StateBody:
+
+			contentLength := r.Headers.Get("content-length")
+			fmt.Printf("content-length: %s\n\n", contentLength)
+			if contentLength == "" {
 				r.state = StateDone
+				return 0, nil
 			}
 
+			length, err := strconv.Atoi(contentLength)
+
+			if err != nil {
+				r.state = StateError
+				return 0, err
+			}
+
+			if length == 0 {
+				r.state = StateDone
+				return read, nil
+			}
+
+			remaining := min(length-len(r.Body), len(data[read:]))
+
+			slog.Info("parse StateBody", "length", length, "remaining", remaining, "read", read, "body", r.Body)
+			r.Body = append(r.Body, data[read:read+remaining]...)
+
+			read += remaining
+
+			if fileIsFinished && len(r.Body) != length {
+				return 0, fmt.Errorf("body is incorrect length")
+			}
+
+			if len(data[read:]) == 0 {
+				break outer
+			}
+
+			slog.Info("parse StateBody", "remaining", remaining, "body", r.Body, "read", read)
+
+			if len(r.Body) == length {
+				r.state = StateDone
+			}
 		default:
 			panic("we made a mistake as programmers")
 		}
@@ -157,18 +201,22 @@ func RequestFromReader(reader io.Reader) (*Request, error) {
 	bufLen := 0
 	for !req.isDone() {
 		n, err := reader.Read(buf[bufLen:])
+		fileIsFinished := false
 		if err != nil {
-			if errors.Is(err, io.EOF) {
-				req.state = StateDone
-				break
+			if !errors.Is(err, io.EOF) {
+				return nil, err
 			}
-			return nil, err
+			fileIsFinished = true
 		}
 
 		bufLen += n
-		readN, err := req.parse(buf[:bufLen])
+		readN, err := req.parse(buf[:bufLen], fileIsFinished)
 		if err != nil {
 			return nil, err
+		}
+		if fileIsFinished {
+			req.state = StateDone
+			break
 		}
 		copy(buf, buf[readN:bufLen])
 		bufLen -= readN
