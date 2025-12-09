@@ -2,24 +2,35 @@ package server
 
 import (
 	"fmt"
+	"io"
 	"net"
-	"sync"
-	"sync/atomic"
-)
-
-type serverState string
-
-const (
-	StateDone  serverState = "done"
-	StateError serverState = "error"
-	StateOn    serverState = "listening"
 )
 
 type Server struct {
-	listener net.Listener
-	state    serverState
-	closed   atomic.Bool
-	wg       sync.WaitGroup
+	closed bool
+}
+
+func runConnection(s *Server, conn io.ReadWriteCloser) {
+	out := []byte("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nHello World!")
+	conn.Write(out)
+	conn.Close()
+}
+
+func runServer(s *Server, listener net.Listener) {
+
+	go func() {
+		for {
+			conn, err := listener.Accept()
+			if s.closed {
+				return
+			}
+			if err != nil {
+				return
+			}
+			go runConnection(s, conn)
+		}
+	}()
+
 }
 
 func Serve(port int) (*Server, error) {
@@ -27,49 +38,14 @@ func Serve(port int) (*Server, error) {
 	if err != nil {
 		return nil, err
 	}
-	s := &Server{
-		listener: lis,
-		state:    StateOn,
-	}
+	server := &Server{}
+	go runServer(server, lis)
 
-	go s.listen()
+	return server, err
 
-	return s, nil
 }
 
-func (s *Server) Close() error {
-	s.closed.Store(true)
-	err := s.listener.Close()
-	s.wg.Wait()
-	return err
-}
+func (s *Server) Close() {
+	s.closed = true
 
-func (s *Server) listen() {
-
-	for {
-		conn, err := s.listener.Accept()
-		if err != nil {
-			if s.closed.Load() {
-				return
-			}
-			s.state = StateError
-			return
-		}
-		s.wg.Add(1)
-
-		go func(c net.Conn) {
-			defer s.wg.Done()
-			s.handle(c)
-		}(conn)
-	}
-}
-
-func (s *Server) handle(conn net.Conn) {
-	defer conn.Close()
-
-	statusLine := "HTTP/1.1 200 OK"
-	headers := "Content-Type: text/plain\r\n"
-	contentLen := "Content-Length: 13\r\n\r\n"
-	body := "Hello World!"
-	conn.Write([]byte(statusLine + headers + contentLen + body))
 }
