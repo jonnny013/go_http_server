@@ -5,6 +5,8 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+
+	"github.com/jonnny013/go_html_server/internal/server"
 )
 
 const port = 42069
