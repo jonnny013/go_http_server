@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log/slog"
 	"strconv"
 	"unicode"
 
@@ -147,7 +146,7 @@ outer:
 		case StateBody:
 
 			contentLength := r.Headers.Get("content-length")
-			fmt.Printf("content-length: %s\n\n", contentLength)
+
 			if contentLength == "" {
 				r.state = StateDone
 				return 0, nil
@@ -167,7 +166,6 @@ outer:
 
 			remaining := min(length-len(r.Body), len(data[read:]))
 
-			slog.Info("parse StateBody", "length", length, "remaining", remaining, "read", read, "body", r.Body)
 			r.Body = append(r.Body, data[read:read+remaining]...)
 
 			read += remaining
@@ -179,8 +177,6 @@ outer:
 			if len(data[read:]) == 0 {
 				break outer
 			}
-
-			slog.Info("parse StateBody", "remaining", remaining, "body", r.Body, "read", read)
 
 			if len(r.Body) == length {
 				r.state = StateDone
