@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"io"
 	"net"
+
+	"github.com/jonnny013/go_html_server/internal/response"
 )
 
 type Server struct {
@@ -11,8 +13,18 @@ type Server struct {
 }
 
 func runConnection(s *Server, conn io.ReadWriteCloser) {
-	out := []byte("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nHello World!")
-	conn.Write(out)
+	err := response.WriteStatusLine(conn, 200)
+	if err != nil {
+		s.closed = true
+		return
+	}
+	h := response.GetDefaultHeaders(0)
+
+	err = response.WriteHeaders(conn, h)
+	if err != nil {
+		s.closed = true
+		return
+	}
 	conn.Close()
 }
 
