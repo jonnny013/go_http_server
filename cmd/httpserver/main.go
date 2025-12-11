@@ -1,7 +1,6 @@
 package main
 
 import (
-	"io"
 	"log"
 	"os"
 	"os/signal"
@@ -14,23 +13,25 @@ import (
 
 const port = 42069
 
-func handler(w io.Writer, req *request.Request) *server.HandlerError {
-	var errorHandler = &server.HandlerError{}
+func handler(w *response.Writer, req *request.Request) {
+	var body []byte
 
 	switch req.RequestLine.RequestTarget {
 	case "/yourproblem":
-		errorHandler.StatusCode = response.StatusBadRequest
-		errorHandler.Message = "Your problem is not my problem\n"
+		w.WriteStatusLine(response.StatusBadRequest)
+		body = server.Response400()
 	case "/myproblem":
-		errorHandler.StatusCode = response.StatusSystemError
-		errorHandler.Message = "Woopsie, my bad\n"
+		w.WriteStatusLine(response.StatusSystemError)
+		body = server.Response500()
 	default:
-		errorHandler.StatusCode = response.StatusOk
-		errorHandler.Message = "All good\n"
+		w.WriteStatusLine(response.StatusOk)
+		body = server.Response200()
 	}
 
-	w.Write([]byte(errorHandler.Message))
-	return errorHandler
+	headers := response.GetDefaultHeaders(len(body))
+	w.WriteHeaders(headers)
+
+	w.WriteBody(body)
 
 }
 

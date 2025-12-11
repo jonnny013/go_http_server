@@ -1,7 +1,6 @@
 package server
 
 import (
-	"bytes"
 	"fmt"
 	"io"
 	"net"
@@ -20,10 +19,12 @@ type HandlerError struct {
 	Message    string
 }
 
-type Handler func(w io.Writer, req *request.Request) *HandlerError
+type Handler func(w *response.Writer, req *request.Request)
 
 func runConnection(s *Server, conn io.ReadWriteCloser) {
 	defer conn.Close()
+
+	resWriter := response.NewWriter(conn)
 
 	req, err := request.RequestFromReader(conn)
 
@@ -32,27 +33,7 @@ func runConnection(s *Server, conn io.ReadWriteCloser) {
 		return
 	}
 
-	buf := new(bytes.Buffer)
-
-	handlerError := s.handler(buf, req)
-
-	err = response.WriteStatusLine(conn, response.StatusCode(handlerError.StatusCode))
-
-	if err != nil {
-		s.closed = true
-		return
-	}
-
-	h := response.GetDefaultHeaders(len(handlerError.Message))
-
-	err = response.WriteHeaders(conn, h)
-
-	if err != nil {
-		s.closed = true
-		return
-	}
-
-	conn.Write(buf.Bytes())
+	s.handler(resWriter, req)
 
 }
 
@@ -71,10 +52,6 @@ func runServer(s *Server, listener net.Listener) {
 		}
 	}()
 
-}
-
-func (e *HandlerError) NewHandlerError(w io.Writer) error {
-	return response.WriteStatusLine(w, response.StatusCode(e.StatusCode))
 }
 
 func Serve(port int, handler Handler) (*Server, error) {
@@ -96,4 +73,40 @@ func Serve(port int, handler Handler) (*Server, error) {
 func (s *Server) Close() {
 	s.closed = true
 
+}
+
+func Response200() []byte {
+	return []byte(`<html>
+  <head>
+    <title>200 OK</title>
+  </head>
+  <body>
+    <h1>Success!</h1>
+    <p>Your request was an absolute banger.</p>
+  </body>
+</html>`)
+}
+
+func Response400() []byte {
+	return []byte(`<html>
+  <head>
+    <title>400 Bad Request</title>
+  </head>
+  <body>
+    <h1>Bad Request</h1>
+    <p>Your request honestly kinda sucked.</p>
+  </body>
+</html>`)
+}
+
+func Response500() []byte {
+	return []byte(`<html>
+  <head>
+    <title>500 Internal Server Error</title>
+  </head>
+  <body>
+    <h1>Internal Server Error</h1>
+    <p>Okay, you know what? This one is on me.</p>
+  </body>
+</html>`)
 }

@@ -15,9 +15,19 @@ const (
 	StatusSystemError StatusCode = 500
 )
 
+type Writer struct {
+	writer io.Writer
+}
+
+func NewWriter(writer io.Writer) *Writer {
+	return &Writer{
+		writer: writer,
+	}
+}
+
 var crlf = []byte("\r\n")
 
-func WriteStatusLine(w io.Writer, statusCode StatusCode) error {
+func (w *Writer) WriteStatusLine(statusCode StatusCode) error {
 	status := []byte("HTTP/1.1 ")
 	status = fmt.Appendf(status, "%v ", statusCode)
 	switch statusCode {
@@ -31,7 +41,7 @@ func WriteStatusLine(w io.Writer, statusCode StatusCode) error {
 
 	status = append(status, crlf...)
 
-	_, err := w.Write(status)
+	_, err := w.writer.Write(status)
 	return err
 }
 
@@ -45,7 +55,7 @@ func GetDefaultHeaders(contentLen int) *headers.Headers {
 	return h
 }
 
-func WriteHeaders(w io.Writer, headers *headers.Headers) error {
+func (w *Writer) WriteHeaders(headers *headers.Headers) error {
 	headersMap := headers.GetAll()
 
 	for key, val := range headersMap {
@@ -53,11 +63,15 @@ func WriteHeaders(w io.Writer, headers *headers.Headers) error {
 		buf = fmt.Appendf(buf, "%s: %s", key, val)
 		buf = append(buf, crlf...)
 
-		if _, err := w.Write(buf); err != nil {
+		if _, err := w.writer.Write(buf); err != nil {
 			return err
 		}
 	}
 
-	_, err := w.Write(crlf)
+	_, err := w.writer.Write(crlf)
 	return err
+}
+
+func (w *Writer) WriteBody(p []byte) (int, error) {
+	return w.writer.Write(p)
 }
