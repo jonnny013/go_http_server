@@ -11,17 +11,19 @@ import (
 )
 
 type Server struct {
-	closed bool
+	closed  bool
+	handler Handler
 }
 
 type HandlerError struct {
-	StatusCode int
+	StatusCode response.StatusCode
 	Message    string
 }
 
 type Handler func(w io.Writer, req *request.Request) *HandlerError
 
-func runConnection(s *Server, conn io.ReadWriteCloser, handler Handler) {
+func runConnection(s *Server, conn io.ReadWriteCloser) {
+	defer conn.Close()
 
 	req, err := request.RequestFromReader(conn)
 
@@ -32,7 +34,7 @@ func runConnection(s *Server, conn io.ReadWriteCloser, handler Handler) {
 
 	buf := new(bytes.Buffer)
 
-	handlerError := handler(buf, req)
+	handlerError := s.handler(buf, req)
 
 	err = response.WriteStatusLine(conn, response.StatusCode(handlerError.StatusCode))
 
@@ -52,10 +54,9 @@ func runConnection(s *Server, conn io.ReadWriteCloser, handler Handler) {
 
 	conn.Write(buf.Bytes())
 
-	conn.Close()
 }
 
-func runServer(s *Server, listener net.Listener, handler Handler) {
+func runServer(s *Server, listener net.Listener) {
 
 	go func() {
 		for {
@@ -66,7 +67,7 @@ func runServer(s *Server, listener net.Listener, handler Handler) {
 			if err != nil {
 				return
 			}
-			go runConnection(s, conn, handler)
+			go runConnection(s, conn)
 		}
 	}()
 
@@ -81,8 +82,12 @@ func Serve(port int, handler Handler) (*Server, error) {
 	if err != nil {
 		return nil, err
 	}
-	server := &Server{}
-	go runServer(server, lis, handler)
+	server := &Server{
+		handler: handler,
+		closed:  false,
+	}
+
+	go runServer(server, lis)
 
 	return server, err
 

@@ -8,6 +8,7 @@ import (
 	"syscall"
 
 	"github.com/jonnny013/go_html_server/internal/request"
+	"github.com/jonnny013/go_html_server/internal/response"
 	"github.com/jonnny013/go_html_server/internal/server"
 )
 
@@ -18,13 +19,13 @@ func handler(w io.Writer, req *request.Request) *server.HandlerError {
 
 	switch req.RequestLine.RequestTarget {
 	case "/yourproblem":
-		errorHandler.StatusCode = 400
+		errorHandler.StatusCode = response.StatusBadRequest
 		errorHandler.Message = "Your problem is not my problem\n"
 	case "/myproblem":
-		errorHandler.StatusCode = 500
+		errorHandler.StatusCode = response.StatusSystemError
 		errorHandler.Message = "Woopsie, my bad\n"
 	default:
-		errorHandler.StatusCode = 200
+		errorHandler.StatusCode = response.StatusOk
 		errorHandler.Message = "All good\n"
 	}
 
