@@ -13,6 +13,7 @@ const (
 	StatusOk          StatusCode = 200
 	StatusBadRequest  StatusCode = 400
 	StatusSystemError StatusCode = 500
+	StatusStream      StatusCode = 100
 )
 
 type Writer struct {
@@ -45,14 +46,17 @@ func (w *Writer) WriteStatusLine(statusCode StatusCode) error {
 	return err
 }
 
-func GetDefaultHeaders(contentLen int) *headers.Headers {
+func GetDefaultHeaders() *headers.Headers {
 	h := headers.NewHeaders()
 
-	h.Set("Content-Length", fmt.Sprintf("%d", contentLen))
 	h.Set("Connection", "close")
 	h.Set("Content-Type", "text/plain")
 
 	return h
+}
+
+func GetContentLengthHeader(h *headers.Headers, contentLen int) {
+	h.Set("Content-Length", fmt.Sprintf("%d", contentLen))
 }
 
 func (w *Writer) WriteHeaders(headers *headers.Headers) error {
@@ -74,4 +78,8 @@ func (w *Writer) WriteHeaders(headers *headers.Headers) error {
 
 func (w *Writer) WriteBody(p []byte) (int, error) {
 	return w.writer.Write(p)
+}
+
+func (w *Writer) WriteChunkedBodyDone() (int, error) {
+	return w.WriteBody([]byte("0\r\n\r\n"))
 }

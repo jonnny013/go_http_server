@@ -1,9 +1,12 @@
 package main
 
 import (
+	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 
 	"github.com/jonnny013/go_html_server/internal/request"
@@ -14,21 +17,51 @@ import (
 const port = 42069
 
 func handler(w *response.Writer, req *request.Request) {
+	path := req.RequestLine.RequestTarget
 	var body []byte
 
-	switch req.RequestLine.RequestTarget {
-	case "/yourproblem":
+	headers := response.GetDefaultHeaders()
+
+	if path == "/yourproblem" {
 		w.WriteStatusLine(response.StatusBadRequest)
 		body = server.Response400()
-	case "/myproblem":
+	} else if path == "/myproblem" {
 		w.WriteStatusLine(response.StatusSystemError)
 		body = server.Response500()
-	default:
+	} else if strings.HasPrefix(path, "/httpbin") {
+
+		res, err := http.Get("https://httpbin.org/" + strings.TrimPrefix(path, "/httpbin/"))
+
+		if err != nil {
+			w.WriteStatusLine(response.StatusSystemError)
+			body = server.Response500()
+		} else {
+
+			w.WriteStatusLine(response.StatusOk)
+			headers.Set("Transfer-Encoding", "chunked")
+			w.WriteHeaders(headers)
+			for {
+				data := make([]byte, 32)
+				n, err := res.Body.Read(data)
+				if err != nil {
+					break
+				}
+				w.WriteBody(fmt.Appendf(nil, "%x\r\n", n))
+				w.WriteBody(data[:n])
+				w.WriteBody([]byte("\r\n"))
+			}
+			w.WriteChunkedBodyDone()
+			return
+		}
+
+		w.WriteStatusLine(response.StatusStream)
+	} else {
 		w.WriteStatusLine(response.StatusOk)
 		body = server.Response200()
 	}
 
-	headers := response.GetDefaultHeaders(len(body))
+	response.GetContentLengthHeader(headers, len(body))
+
 	w.WriteHeaders(headers)
 
 	w.WriteBody(body)
