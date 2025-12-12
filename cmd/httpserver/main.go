@@ -29,6 +29,20 @@ func handler(w *response.Writer, req *request.Request) {
 	} else if path == "/myproblem" {
 		w.WriteStatusLine(response.StatusSystemError)
 		body = server.Response500()
+	} else if path == "/video" {
+		headers.Set("Content-Type", "video/mp4")
+
+		v, err := os.ReadFile("./assets/vim.mp4")
+		if err != nil {
+			w.WriteStatusLine(response.StatusSystemError)
+			body = server.Response500()
+			w.WriteBody(body)
+			return
+		}
+
+		body = v
+
+		w.WriteStatusLine(response.StatusOk)
 	} else if strings.HasPrefix(path, "/httpbin") {
 
 		res, err := http.Get("https://httpbin.org/" + strings.TrimPrefix(path, "/httpbin/"))
