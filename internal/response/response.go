@@ -80,6 +80,16 @@ func (w *Writer) WriteBody(p []byte) (int, error) {
 	return w.writer.Write(p)
 }
 
-func (w *Writer) WriteChunkedBodyDone() (int, error) {
-	return w.WriteBody([]byte("0\r\n\r\n"))
+func (w *Writer) WriteChunkedBodyDone(dataLength int, hashSize []byte) (int, error) {
+
+	i, err := w.WriteBody([]byte("0\r\n\r\n"))
+	headers := headers.NewHeaders()
+	headers.Set("X-Content-SHA256", fmt.Sprintf("%x", hashSize))
+	headers.Set("X-Content-Length", fmt.Sprintf("%d", dataLength))
+	w.WriteHeaders(headers)
+	return i, err
+}
+
+func (w *Writer) WriteTrailers(h *headers.Headers) {
+	h.Set("Trailer", "X-Content-SHA256 X-Content-Length")
 }

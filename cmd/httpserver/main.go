@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/sha256"
 	"fmt"
 	"log"
 	"net/http"
@@ -38,19 +39,26 @@ func handler(w *response.Writer, req *request.Request) {
 		} else {
 
 			w.WriteStatusLine(response.StatusOk)
+
 			headers.Set("Transfer-Encoding", "chunked")
+			w.WriteTrailers(headers)
 			w.WriteHeaders(headers)
+			dataLength := 0
+			h := sha256.New()
 			for {
 				data := make([]byte, 32)
 				n, err := res.Body.Read(data)
 				if err != nil {
 					break
 				}
+				h.Write(data[:n])
 				w.WriteBody(fmt.Appendf(nil, "%x\r\n", n))
 				w.WriteBody(data[:n])
 				w.WriteBody([]byte("\r\n"))
+				dataLength += n
 			}
-			w.WriteChunkedBodyDone()
+
+			w.WriteChunkedBodyDone(dataLength, h.Sum(nil))
 			return
 		}
 
